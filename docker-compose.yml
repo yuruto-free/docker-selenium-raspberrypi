@@ -1,0 +1,50 @@
+version: '3.7'
+
+x-logging:
+    &json-logging
+    driver: json-file
+    options:
+        max-size: "1m"
+        max-file: "3"
+
+services:
+    selenium:
+        image: seleniarm/standalone-chromium:latest
+        container_name: selenium
+        networks:
+            - frontend
+            - backend
+        ports:
+            - 5900:5900 # Using VNC client (VNC server is listening to 5900)
+            - 7900:7900 # Using own browser withoug VNC client (Port 7900 is used to start noVNC) password: secret
+        expose:
+            - 4444
+        restart: always
+        logging: *json-logging
+        shm_size: 2gb
+
+    app:
+        build:
+            context: ./app
+            dockerfile: Dockerfile
+            args:
+                TZ: 'Asia/Tokyo'
+        image: custom_selenium_app
+        container_name: app
+        environment:
+            - SELENIUM_URL=http://selenium:4444/wd/hub
+        volumes:
+            - ./app/selenium_app.py:/code/app.py:ro
+        networks:
+            - backend
+        restart: always
+        logging: *json-logging
+        depends_on:
+            - selenium
+
+
+networks:
+    frontend:
+        name: frontend_network
+    backend:
+        name: backend_network
